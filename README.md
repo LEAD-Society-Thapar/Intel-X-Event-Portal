@@ -43,21 +43,63 @@ npm run dev
 
 ## Folder structure
 
-- **`public/`** — Static assets served as-is (favicon, etc.)
-- **`src/`**
-  - **`assets/`** — Images, fonts, icons imported into components
-  - **`components/`** — Reusable UI pieces used across multiple pages
-  - **`contexts/`** — React Context providers (e.g. AuthContext)
-  - **`hooks/`** — Custom hooks, especially Realtime subscriptions
-  - **`layouts/`** — Shared page wrappers (e.g. nav bar + credit balance)
-  - **`lib/`** — `supabaseClient.js` (the single configured Supabase client)
-  - **`pages/`** — One file per full screen/route
-  - **`utils/`** — Plain helper functions, no React
-  - `App.jsx` — Route definitions
-  - `main.jsx` — App entry point
-- `.env.local` — Supabase URL/key (gitignored, never commit)
-- `package.json` — Project dependencies and scripts
-- `vite.config.js` — Vite configuration
+```
+intel-x-portal/
+├── database/                     # Supabase SQL scripts (run in order)
+│   ├── schema.sql                #   Table definitions, enums, RLS policies
+│   ├── seed.sql                  #   Airport dossiers, auction items, test teams
+│   └── rpc.sql                   #   SECURITY DEFINER RPCs (game logic)
+├── public/                       # Static assets served as-is
+│   ├── favicon.svg
+│   └── icons.svg
+├── src/
+│   ├── assets/                   # Images imported into components
+│   ├── components/               # Reusable UI pieces
+│   │   ├── admin/                #   Admin-only components
+│   │   │   ├── AuctionResolver.jsx
+│   │   │   ├── PhaseAdvancer.jsx
+│   │   │   ├── Round1ScoreEntry.jsx
+│   │   │   ├── SpecialOpsQueue.jsx
+│   │   │   └── TeamOverview.jsx
+│   │   ├── AirportCard.jsx
+│   │   ├── AuctionCard.jsx
+│   │   ├── InformerStall.jsx
+│   │   ├── ProtectedRoute.jsx
+│   │   └── SpecialOpsCard.jsx
+│   ├── contexts/
+│   │   └── AuthContext.jsx       # Dual auth (team session + admin Supabase Auth)
+│   ├── hooks/
+│   │   ├── useGameState.js       # Realtime subscription to game_state
+│   │   └── useTeamData.js        # Realtime subscription to team row + relations
+│   ├── layouts/
+│   │   ├── AdminLayout.jsx       # Sidebar nav for Game Master console
+│   │   └── TeamLayout.jsx        # Top bar with credits & phase indicator
+│   ├── lib/
+│   │   └── supabaseClient.js     # Singleton Supabase client
+│   ├── pages/
+│   │   ├── AdminAuction.jsx
+│   │   ├── AdminDashboard.jsx
+│   │   ├── AdminLogin.jsx
+│   │   ├── AdminOps.jsx
+│   │   ├── AdminRound3.jsx
+│   │   ├── AdminScores.jsx
+│   │   ├── AdminTeams.jsx
+│   │   ├── Auction.jsx
+│   │   ├── Broadcast.jsx         # Full-screen projector display
+│   │   ├── DossierViewer.jsx
+│   │   ├── TeamDashboard.jsx
+│   │   └── TeamLogin.jsx
+│   ├── utils/                    # Plain helper functions (no React)
+│   ├── App.jsx                   # Route definitions
+│   ├── index.css                 # Tailwind v4 theme & global styles
+│   └── main.jsx                  # App entry point
+├── .env.example                  # Template for required env vars
+├── .gitignore
+├── index.html                    # HTML shell with fonts & meta
+├── package.json
+├── vercel.json                   # SPA rewrites for Vercel deployment
+└── vite.config.js
+```
 
 ---
 

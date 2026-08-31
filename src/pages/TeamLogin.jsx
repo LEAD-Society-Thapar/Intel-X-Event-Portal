@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function TeamLogin() {
   const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { loginAsTeam } = useAuth()
@@ -15,7 +16,7 @@ export default function TeamLogin() {
     setLoading(true)
 
     try {
-      await loginAsTeam(code)
+      await loginAsTeam(code, password)
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(err.message)
@@ -62,6 +63,24 @@ export default function TeamLogin() {
               />
             </label>
 
+            <label className="block">
+              <span className="text-xs font-mono text-gray-400 uppercase tracking-wide">
+                Team Password
+              </span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your team password"
+                autoComplete="off"
+                className="mt-1.5 w-full bg-[#0a0e17] border border-white/10 rounded-md px-3 py-2.5
+                           text-white font-mono text-center text-lg tracking-widest
+                           placeholder:text-gray-600 placeholder:tracking-normal placeholder:text-sm
+                           focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30
+                           transition-colors"
+              />
+            </label>
+
             {error && (
               <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2 font-mono">
                 ⚠ {error}
@@ -70,7 +89,7 @@ export default function TeamLogin() {
 
             <button
               type="submit"
-              disabled={loading || !code.trim()}
+              disabled={loading || !code.trim() || !password.trim()}
               className="w-full py-2.5 rounded-md font-mono text-sm font-semibold tracking-wide uppercase
                          bg-cyan-600 text-white hover:bg-cyan-500
                          disabled:opacity-40 disabled:cursor-not-allowed

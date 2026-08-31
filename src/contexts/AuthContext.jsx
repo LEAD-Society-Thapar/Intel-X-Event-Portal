@@ -47,18 +47,20 @@ export function AuthProvider({ children }) {
   // ------------------------------------------------------------------
   // Team login: validate code against teams table
   // ------------------------------------------------------------------
-  const loginAsTeam = useCallback(async (loginCode) => {
+  const loginAsTeam = useCallback(async (loginCode, password) => {
     const trimmed = loginCode.trim()
     if (!trimmed) throw new Error('Login code cannot be empty')
+    if (!password || !password.trim()) throw new Error('Password cannot be empty')
 
     const { data, error } = await supabase
       .from('teams')
       .select('id, name, credits_balance, clearance_tier')
       .eq('login_code', trimmed)
+      .eq('team_password', password.trim())
       .single()
 
     if (error || !data) {
-      throw new Error('Invalid login code. Check with your team mentor.')
+      throw new Error('Invalid login code or password. Check with your team mentor.')
     }
 
     setTeam(data)

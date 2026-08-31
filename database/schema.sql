@@ -30,6 +30,7 @@ CREATE TABLE teams (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name            TEXT NOT NULL UNIQUE,
   login_code      TEXT NOT NULL UNIQUE,
+  team_password   TEXT NOT NULL DEFAULT 'changeme',
   round1_scores   JSONB DEFAULT NULL,
   clearance_tier  TEXT DEFAULT NULL,
   credits_balance INTEGER NOT NULL DEFAULT 0,

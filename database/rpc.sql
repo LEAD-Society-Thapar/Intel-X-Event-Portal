@@ -535,6 +535,7 @@ BEGIN
   DELETE FROM special_ops_submissions WHERE id IS NOT NULL;
   DELETE FROM auction_bids WHERE id IS NOT NULL;
   DELETE FROM team_informer_purchases WHERE team_id IS NOT NULL;
+  DELETE FROM team_dossier_progress WHERE team_id IS NOT NULL;
 
   -- Reset game phase
   UPDATE game_state SET
@@ -551,5 +552,99 @@ BEGIN
   WHERE id IS NOT NULL;
 
   RETURN json_build_object('success', true, 'message', 'Game fully reset');
+END;
+$$;
+
+
+-- ============================================================
+-- RPC: submit_dossier_answers
+-- Auto-checks answers case-insensitively. Awards +10 per new
+-- correct answer.
+-- ============================================================
+CREATE OR REPLACE FUNCTION submit_dossier_answers(
+  p_team_id UUID,
+  p_airport_id UUID,
+  p_a1 TEXT,
+  p_a2 TEXT,
+  p_a3 TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_unlocked BOOLEAN;
+  v_keys airport_answer_keys%ROWTYPE;
+  v_prog team_dossier_progress%ROWTYPE;
+  v_q1_correct BOOLEAN := false;
+  v_q2_correct BOOLEAN := false;
+  v_q3_correct BOOLEAN := false;
+  v_credits_to_add INTEGER := 0;
+BEGIN
+  -- 1. Check if team unlocked this airport
+  SELECT EXISTS(
+    SELECT 1 FROM team_airport_unlocks
+     WHERE team_id = p_team_id AND airport_id = p_airport_id
+  ) INTO v_unlocked;
+  IF NOT v_unlocked THEN
+    RAISE EXCEPTION 'Airport not unlocked';
+  END IF;
+
+  -- 2. Fetch the correct answer keys
+  SELECT * INTO v_keys FROM airport_answer_keys WHERE airport_id = p_airport_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Answers for this dossier are not configured';
+  END IF;
+
+  -- 3. Fetch current progress (or default to false)
+  SELECT * INTO v_prog FROM team_dossier_progress
+  WHERE team_id = p_team_id AND airport_id = p_airport_id
+  FOR UPDATE;
+
+  -- 4. Check each question
+  -- Q1
+  IF NOT COALESCE(v_prog.q1_solved, false) AND lower(trim(p_a1)) = lower(trim(v_keys.q1_answer)) THEN
+    v_q1_correct := true;
+    v_credits_to_add := v_credits_to_add + 10;
+  END IF;
+  -- Q2
+  IF NOT COALESCE(v_prog.q2_solved, false) AND lower(trim(p_a2)) = lower(trim(v_keys.q2_answer)) THEN
+    v_q2_correct := true;
+    v_credits_to_add := v_credits_to_add + 10;
+  END IF;
+  -- Q3
+  IF NOT COALESCE(v_prog.q3_solved, false) AND lower(trim(p_a3)) = lower(trim(v_keys.q3_answer)) THEN
+    v_q3_correct := true;
+    v_credits_to_add := v_credits_to_add + 10;
+  END IF;
+
+  -- 5. Upsert progress and award credits if any new correct
+  IF v_credits_to_add > 0 THEN
+    -- Upsert progress
+    INSERT INTO team_dossier_progress (team_id, airport_id, q1_solved, q2_solved, q3_solved)
+    VALUES (p_team_id, p_airport_id, v_q1_correct, v_q2_correct, v_q3_correct)
+    ON CONFLICT (team_id, airport_id)
+    DO UPDATE SET
+      q1_solved = team_dossier_progress.q1_solved OR EXCLUDED.q1_solved,
+      q2_solved = team_dossier_progress.q2_solved OR EXCLUDED.q2_solved,
+      q3_solved = team_dossier_progress.q3_solved OR EXCLUDED.q3_solved;
+
+    -- Add credits
+    UPDATE teams SET credits_balance = credits_balance + v_credits_to_add
+    WHERE id = p_team_id;
+
+    -- Log transaction
+    INSERT INTO credit_transactions (team_id, amount, reason)
+    VALUES (p_team_id, v_credits_to_add, 'Dossier Analysis: Correct Answers');
+  END IF;
+
+  RETURN json_build_object(
+    'success', true,
+    'q1_newly_correct', v_q1_correct,
+    'q2_newly_correct', v_q2_correct,
+    'q3_newly_correct', v_q3_correct,
+    'credits_awarded', v_credits_to_add
+  );
 END;
 $$;

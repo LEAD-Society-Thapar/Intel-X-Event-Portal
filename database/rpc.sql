@@ -510,3 +510,46 @@ BEGIN
   RETURN json_build_object('success', true, 'informer_active', p_active);
 END;
 $$;
+
+
+-- ============================================================
+-- RPC: reset_game (admin only)
+-- Wipes ALL gameplay data and resets the game to not_started.
+-- Teams are preserved but their scores/credits are zeroed out.
+-- ============================================================
+CREATE OR REPLACE FUNCTION reset_game()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Auth check
+  IF auth.role() != 'authenticated' THEN
+    RAISE EXCEPTION 'Unauthorized — admin only';
+  END IF;
+
+  -- Wipe all transactional data
+  DELETE FROM credit_transactions WHERE id IS NOT NULL;
+  DELETE FROM team_airport_unlocks WHERE team_id IS NOT NULL;
+  DELETE FROM special_ops_submissions WHERE id IS NOT NULL;
+  DELETE FROM auction_bids WHERE id IS NOT NULL;
+  DELETE FROM team_informer_purchases WHERE team_id IS NOT NULL;
+
+  -- Reset game phase
+  UPDATE game_state SET
+    current_phase = 'not_started',
+    informer_stall_active = false,
+    phase_started_at = now()
+  WHERE current_phase IS NOT NULL;
+
+  -- Reset all team scores and credits
+  UPDATE teams SET
+    credits_balance = 0,
+    round1_scores = NULL,
+    clearance_tier = NULL
+  WHERE id IS NOT NULL;
+
+  RETURN json_build_object('success', true, 'message', 'Game fully reset');
+END;
+$$;

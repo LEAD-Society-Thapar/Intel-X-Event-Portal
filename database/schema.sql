@@ -163,6 +163,26 @@ CREATE TABLE team_informer_purchases (
   purchased_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- -----------------------------------------------
+-- TABLE: dossier_answers
+-- One answer per team per airport.
+-- Admin reviews and awards credits (same tiers as special ops).
+-- -----------------------------------------------
+CREATE TABLE dossier_answers (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_id           UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  airport_id        UUID NOT NULL REFERENCES airports(id) ON DELETE CASCADE,
+  answer_text       TEXT NOT NULL,
+  outcome_tier      TEXT DEFAULT NULL,
+  credits_awarded   INTEGER DEFAULT NULL,
+  resolved_by_admin BOOLEAN NOT NULL DEFAULT false,
+  admin_narrative   TEXT DEFAULT NULL,
+  submitted_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(team_id, airport_id)
+);
+
+CREATE INDEX idx_dossier_answers_team ON dossier_answers(team_id);
+
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -189,6 +209,7 @@ ALTER TABLE auction_bids             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE round3_submissions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_state               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_informer_purchases  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dossier_answers          ENABLE ROW LEVEL SECURITY;
 
 -- ---------- SELECT (everyone) ----------
 CREATE POLICY "select_teams"          ON teams                   FOR SELECT USING (true);
@@ -201,6 +222,7 @@ CREATE POLICY "select_auction_bids"   ON auction_bids            FOR SELECT USIN
 CREATE POLICY "select_round3"         ON round3_submissions      FOR SELECT USING (true);
 CREATE POLICY "select_game_state"     ON game_state              FOR SELECT USING (true);
 CREATE POLICY "select_informer"       ON team_informer_purchases FOR SELECT USING (true);
+CREATE POLICY "select_dossier_ans"    ON dossier_answers          FOR SELECT USING (true);
 
 -- ---------- WRITE (authenticated / admin only) ----------
 CREATE POLICY "admin_all_teams"       ON teams                   FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -213,6 +235,7 @@ CREATE POLICY "admin_all_auction_b"   ON auction_bids            FOR ALL TO auth
 CREATE POLICY "admin_all_round3"      ON round3_submissions      FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_game_state"  ON game_state              FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_informer"    ON team_informer_purchases FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_dossier_ans" ON dossier_answers          FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -224,3 +247,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE special_ops_submissions;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_airport_unlocks;
 ALTER PUBLICATION supabase_realtime ADD TABLE auction_bids;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_informer_purchases;
+ALTER PUBLICATION supabase_realtime ADD TABLE dossier_answers;

@@ -15,7 +15,7 @@ const PHASE_LABELS = {
 
 export default function TeamLayout() {
   const { team: authTeam, logout } = useAuth()
-  const { team, unlocks, specialOps, informerPurchased, bids, loading } = useTeamData(authTeam?.id)
+  const { team, unlocks, specialOps, informerPurchased, bids, dossierAnswers, loading } = useTeamData(authTeam?.id)
   const gameState = useGameState()
 
   const credits = team?.credits_balance ?? 0
@@ -82,7 +82,7 @@ export default function TeamLayout() {
             </span>
           </div>
         ) : (
-          <Outlet context={{ team, unlocks, specialOps, informerPurchased, bids, gameState }} />
+          <Outlet context={{ team, unlocks, specialOps, informerPurchased, bids, dossierAnswers, gameState }} />
         )}
       </main>
     </div>

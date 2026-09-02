@@ -15,8 +15,9 @@ const PHASE_LABELS = {
 const NAV_ITEMS = [
   { to: '/admin',         label: 'Overview',      end: true },
   { to: '/admin/scores',  label: 'Round 1 Scores' },
-  { to: '/admin/ops',     label: 'Special Ops' },
-  { to: '/admin/auction', label: 'Auction' },
+  { to: '/admin/ops',      label: 'Special Ops' },
+  { to: '/admin/dossiers', label: 'Dossiers' },
+  { to: '/admin/auction',  label: 'Auction' },
   { to: '/admin/teams',   label: 'Teams' },
   { to: '/admin/round3',  label: 'Round 3' },
 ]

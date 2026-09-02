@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient'
  * Subscribes to the logged-in team's row in `teams` via Realtime.
  * Also fetches their airport unlocks, special ops, informer purchase, and bids.
  *
- * Returns { team, unlocks, specialOps, informerPurchased, bids, loading, error }
+ * Returns { team, unlocks, specialOps, informerPurchased, bids, dossierAnswers, loading, error }
  */
 export default function useTeamData(teamId) {
   const [team, setTeam] = useState(null)
@@ -13,6 +13,7 @@ export default function useTeamData(teamId) {
   const [specialOps, setSpecialOps] = useState(null)
   const [informerPurchased, setInformerPurchased] = useState(false)
   const [bids, setBids] = useState([])
+  const [dossierAnswers, setDossierAnswers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -35,7 +36,7 @@ export default function useTeamData(teamId) {
         // Airport unlocks
         const { data: unlockData } = await supabase
           .from('team_airport_unlocks')
-          .select('airport_id, unlocked_at')
+          .select('id, airport_id, unlocked_at')
           .eq('team_id', teamId)
         if (isMounted) setUnlocks(unlockData || [])
 
@@ -62,6 +63,13 @@ export default function useTeamData(teamId) {
           .eq('team_id', teamId)
         if (isMounted) setBids(bidData || [])
 
+        // Dossier answers
+        const { data: dossierData } = await supabase
+          .from('dossier_answers')
+          .select('*')
+          .eq('team_id', teamId)
+        if (isMounted) setDossierAnswers(dossierData || [])
+
       } catch (err) {
         if (isMounted) setError(err.message)
       } finally {
@@ -84,23 +92,35 @@ export default function useTeamData(teamId) {
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'team_airport_unlocks', filter: `team_id=eq.${teamId}` },
+        { event: '*', schema: 'public', table: 'team_airport_unlocks', filter: `team_id=eq.${teamId}` },
         (payload) => {
-          setUnlocks((prev) => [...prev, payload.new])
+          if (payload.eventType === 'INSERT') {
+            setUnlocks((prev) => [...prev, payload.new])
+          } else if (payload.eventType === 'DELETE') {
+            setUnlocks((prev) => prev.filter((u) => u.id !== payload.old.id))
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'special_ops_submissions', filter: `team_id=eq.${teamId}` },
         (payload) => {
-          setSpecialOps(payload.new || null)
+          if (payload.eventType === 'DELETE') {
+            setSpecialOps(null)
+          } else {
+            setSpecialOps(payload.new || null)
+          }
         }
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'team_informer_purchases', filter: `team_id=eq.${teamId}` },
-        () => {
-          setInformerPurchased(true)
+        { event: '*', schema: 'public', table: 'team_informer_purchases', filter: `team_id=eq.${teamId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setInformerPurchased(false)
+          } else if (payload.eventType === 'INSERT') {
+            setInformerPurchased(true)
+          }
         }
       )
       .on(
@@ -118,6 +138,25 @@ export default function useTeamData(teamId) {
           })
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dossier_answers', filter: `team_id=eq.${teamId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setDossierAnswers((prev) => prev.filter((a) => a.id !== payload.old.id))
+          } else {
+            setDossierAnswers((prev) => {
+              const idx = prev.findIndex((a) => a.id === payload.new.id)
+              if (idx >= 0) {
+                const next = [...prev]
+                next[idx] = payload.new
+                return next
+              }
+              return [...prev, payload.new]
+            })
+          }
+        }
+      )
       .subscribe()
 
     return () => {
@@ -126,5 +165,5 @@ export default function useTeamData(teamId) {
     }
   }, [teamId])
 
-  return { team, unlocks, specialOps, informerPurchased, bids, loading, error }
+  return { team, unlocks, specialOps, informerPurchased, bids, dossierAnswers, loading, error }
 }

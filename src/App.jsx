@@ -23,6 +23,7 @@ import AdminOps from './pages/AdminOps'
 import AdminAuction from './pages/AdminAuction'
 import AdminTeams from './pages/AdminTeams'
 import AdminRound3 from './pages/AdminRound3'
+import AdminDossiers from './pages/AdminDossiers'
 
 export default function App() {
   return (
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="ops" element={<AdminOps />} />
               <Route path="auction" element={<AdminAuction />} />
               <Route path="teams" element={<AdminTeams />} />
+              <Route path="dossiers" element={<AdminDossiers />} />
               <Route path="round3" element={<AdminRound3 />} />
             </Route>
           </Route>

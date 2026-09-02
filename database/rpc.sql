@@ -535,6 +535,7 @@ BEGIN
   DELETE FROM special_ops_submissions WHERE id IS NOT NULL;
   DELETE FROM auction_bids WHERE id IS NOT NULL;
   DELETE FROM team_informer_purchases WHERE team_id IS NOT NULL;
+  DELETE FROM dossier_answers WHERE id IS NOT NULL;
 
   -- Reset game phase
   UPDATE game_state SET
@@ -551,5 +552,123 @@ BEGIN
   WHERE id IS NOT NULL;
 
   RETURN json_build_object('success', true, 'message', 'Game fully reset');
+END;
+$$;
+
+
+-- ============================================================
+-- RPC: submit_dossier_answer
+-- Called by teams. One answer per airport (no credit cost —
+-- the team already paid to unlock the airport).
+-- ============================================================
+CREATE OR REPLACE FUNCTION submit_dossier_answer(
+  p_team_id    UUID,
+  p_airport_id UUID,
+  p_answer_text TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_unlocked  BOOLEAN;
+  v_already   BOOLEAN;
+BEGIN
+  -- Verify team unlocked this airport
+  SELECT EXISTS(
+    SELECT 1 FROM team_airport_unlocks
+     WHERE team_id = p_team_id AND airport_id = p_airport_id
+  ) INTO v_unlocked;
+  IF NOT v_unlocked THEN
+    RAISE EXCEPTION 'Airport not unlocked';
+  END IF;
+
+  -- Already submitted?
+  SELECT EXISTS(
+    SELECT 1 FROM dossier_answers
+     WHERE team_id = p_team_id AND airport_id = p_airport_id
+  ) INTO v_already;
+  IF v_already THEN
+    RAISE EXCEPTION 'Answer already submitted for this dossier';
+  END IF;
+
+  -- Insert answer
+  INSERT INTO dossier_answers (team_id, airport_id, answer_text)
+  VALUES (p_team_id, p_airport_id, p_answer_text);
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+
+
+-- ============================================================
+-- RPC: resolve_dossier_answer (admin only)
+-- Admin picks an outcome tier; system auto-fills credits.
+-- Same tiers as special ops.
+-- ============================================================
+CREATE OR REPLACE FUNCTION resolve_dossier_answer(
+  p_submission_id UUID,
+  p_outcome_tier  TEXT,
+  p_narrative     TEXT
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_team_id UUID;
+  v_credits INTEGER;
+BEGIN
+  -- Auth check
+  IF auth.role() != 'authenticated' THEN
+    RAISE EXCEPTION 'Unauthorized — admin only';
+  END IF;
+
+  -- Map outcome tier to credits
+  v_credits := CASE p_outcome_tier
+    WHEN 'exceptional' THEN 40
+    WHEN 'successful'  THEN 30
+    WHEN 'partial'     THEN 20
+    WHEN 'limited'     THEN 10
+    WHEN 'failure'     THEN 0
+    ELSE NULL
+  END;
+  IF v_credits IS NULL THEN
+    RAISE EXCEPTION 'Invalid outcome tier. Must be: exceptional, successful, partial, limited, failure';
+  END IF;
+
+  -- Get team_id and verify not already resolved
+  SELECT team_id INTO v_team_id
+    FROM dossier_answers
+   WHERE id = p_submission_id AND resolved_by_admin = false;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Submission not found or already resolved';
+  END IF;
+
+  -- Update submission
+  UPDATE dossier_answers SET
+    outcome_tier      = p_outcome_tier,
+    credits_awarded   = v_credits,
+    resolved_by_admin = true,
+    admin_narrative   = p_narrative
+  WHERE id = p_submission_id;
+
+  -- Credit the team (if > 0)
+  IF v_credits > 0 THEN
+    UPDATE teams SET credits_balance = credits_balance + v_credits
+     WHERE id = v_team_id;
+
+    INSERT INTO credit_transactions (team_id, amount, reason)
+    VALUES (v_team_id, v_credits, 'Dossier analysis: ' || p_outcome_tier || ' (+' || v_credits || ')');
+  END IF;
+
+  RETURN json_build_object(
+    'success', true,
+    'team_id', v_team_id,
+    'outcome_tier', p_outcome_tier,
+    'credits_awarded', v_credits
+  );
 END;
 $$;

@@ -13,6 +13,7 @@ export default function useTeamData(teamId) {
   const [specialOps, setSpecialOps] = useState(null)
   const [informerPurchased, setInformerPurchased] = useState(false)
   const [bids, setBids] = useState([])
+  const [dossierProgress, setDossierProgress] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -62,6 +63,13 @@ export default function useTeamData(teamId) {
           .eq('team_id', teamId)
         if (isMounted) setBids(bidData || [])
 
+        // Dossier progress
+        const { data: progressData } = await supabase
+          .from('team_dossier_progress')
+          .select('*')
+          .eq('team_id', teamId)
+        if (isMounted) setDossierProgress(progressData || [])
+
       } catch (err) {
         if (isMounted) setError(err.message)
       } finally {
@@ -84,38 +92,73 @@ export default function useTeamData(teamId) {
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'team_airport_unlocks', filter: `team_id=eq.${teamId}` },
+        { event: '*', schema: 'public', table: 'team_airport_unlocks', filter: `team_id=eq.${teamId}` },
         (payload) => {
-          setUnlocks((prev) => [...prev, payload.new])
+          if (payload.eventType === 'DELETE') {
+            setUnlocks((prev) => prev.filter((u) => u.id !== payload.old.id))
+          } else if (payload.eventType === 'INSERT') {
+            setUnlocks((prev) => [...prev, payload.new])
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'special_ops_submissions', filter: `team_id=eq.${teamId}` },
         (payload) => {
-          setSpecialOps(payload.new || null)
+          if (payload.eventType === 'DELETE') {
+            setSpecialOps(null)
+          } else {
+            setSpecialOps(payload.new)
+          }
         }
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'team_informer_purchases', filter: `team_id=eq.${teamId}` },
-        () => {
-          setInformerPurchased(true)
+        { event: '*', schema: 'public', table: 'team_informer_purchases', filter: `team_id=eq.${teamId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setInformerPurchased(false)
+          } else if (payload.eventType === 'INSERT') {
+            setInformerPurchased(true)
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'auction_bids', filter: `team_id=eq.${teamId}` },
         (payload) => {
-          setBids((prev) => {
-            const existing = prev.findIndex((b) => b.id === payload.new.id)
-            if (existing >= 0) {
-              const next = [...prev]
-              next[existing] = payload.new
-              return next
-            }
-            return [...prev, payload.new]
-          })
+          if (payload.eventType === 'DELETE') {
+            setBids((prev) => prev.filter((b) => b.id !== payload.old.id))
+          } else {
+            setBids((prev) => {
+              const existing = prev.findIndex((b) => b.id === payload.new.id)
+              if (existing >= 0) {
+                const next = [...prev]
+                next[existing] = payload.new
+                return next
+              }
+              return [...prev, payload.new]
+            })
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'team_dossier_progress', filter: `team_id=eq.${teamId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setDossierProgress((prev) => prev.filter((p) => p.airport_id !== payload.old.airport_id))
+          } else {
+            setDossierProgress((prev) => {
+              const existing = prev.findIndex((p) => p.airport_id === payload.new.airport_id)
+              if (existing >= 0) {
+                const next = [...prev]
+                next[existing] = payload.new
+                return next
+              }
+              return [...prev, payload.new]
+            })
+          }
         }
       )
       .subscribe()
@@ -126,5 +169,5 @@ export default function useTeamData(teamId) {
     }
   }, [teamId])
 
-  return { team, unlocks, specialOps, informerPurchased, bids, loading, error }
+  return { team, unlocks, specialOps, informerPurchased, bids, dossierProgress, loading, error }
 }

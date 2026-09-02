@@ -63,8 +63,40 @@ CREATE TABLE airports (
   cost             INTEGER NOT NULL,
   briefing_text    TEXT NOT NULL DEFAULT '',
   evidence_content TEXT NOT NULL DEFAULT '',
-  fragment_name    TEXT NOT NULL
+  fragment_name    TEXT NOT NULL,
+  q1_text          TEXT NOT NULL DEFAULT 'Question 1?',
+  q2_text          TEXT NOT NULL DEFAULT 'Question 2?',
+  q3_text          TEXT NOT NULL DEFAULT 'Question 3?'
 );
+
+-- -----------------------------------------------
+-- TABLE: airport_answer_keys
+-- Secure table holding the correct answers. Admin only.
+-- -----------------------------------------------
+CREATE TABLE airport_answer_keys (
+  airport_id UUID PRIMARY KEY REFERENCES airports(id) ON DELETE CASCADE,
+  q1_answer  TEXT NOT NULL,
+  q2_answer  TEXT NOT NULL,
+  q3_answer  TEXT NOT NULL
+);
+ALTER TABLE airport_answer_keys ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admin_all_answer_keys" ON airport_answer_keys FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- -----------------------------------------------
+-- TABLE: team_dossier_progress
+-- Tracks which questions a team has successfully answered.
+-- -----------------------------------------------
+CREATE TABLE team_dossier_progress (
+  team_id    UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  airport_id UUID NOT NULL REFERENCES airports(id) ON DELETE CASCADE,
+  q1_solved  BOOLEAN NOT NULL DEFAULT false,
+  q2_solved  BOOLEAN NOT NULL DEFAULT false,
+  q3_solved  BOOLEAN NOT NULL DEFAULT false,
+  PRIMARY KEY(team_id, airport_id)
+);
+ALTER TABLE team_dossier_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "select_dossier_prog" ON team_dossier_progress FOR SELECT USING (true);
+CREATE POLICY "admin_all_dossier_prog" ON team_dossier_progress FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- -----------------------------------------------
 -- TABLE: team_airport_unlocks
@@ -77,6 +109,7 @@ CREATE TABLE team_airport_unlocks (
   unlocked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(team_id, airport_id)
 );
+ALTER TABLE team_airport_unlocks REPLICA IDENTITY FULL;
 
 CREATE INDEX idx_unlocks_team ON team_airport_unlocks(team_id);
 
@@ -94,6 +127,7 @@ CREATE TABLE special_ops_submissions (
   admin_narrative   TEXT DEFAULT NULL,
   submitted_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE special_ops_submissions REPLICA IDENTITY FULL;
 
 -- -----------------------------------------------
 -- TABLE: auction_items
@@ -113,13 +147,14 @@ CREATE TABLE auction_items (
 -- -----------------------------------------------
 CREATE TABLE auction_bids (
   id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  team_id      UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   item_id      UUID NOT NULL REFERENCES auction_items(id) ON DELETE CASCADE,
+  team_id      UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   bid_amount   INTEGER NOT NULL CHECK (bid_amount > 0),
   is_winner    BOOLEAN NOT NULL DEFAULT false,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(team_id, item_id)
 );
+ALTER TABLE auction_bids REPLICA IDENTITY FULL;
 
 CREATE INDEX idx_bids_item ON auction_bids(item_id);
 
@@ -162,6 +197,7 @@ CREATE TABLE team_informer_purchases (
   team_id      UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE UNIQUE,
   purchased_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE team_informer_purchases REPLICA IDENTITY FULL;
 
 
 -- ============================================================
@@ -224,3 +260,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE special_ops_submissions;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_airport_unlocks;
 ALTER PUBLICATION supabase_realtime ADD TABLE auction_bids;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_informer_purchases;
+ALTER PUBLICATION supabase_realtime ADD TABLE team_dossier_progress;

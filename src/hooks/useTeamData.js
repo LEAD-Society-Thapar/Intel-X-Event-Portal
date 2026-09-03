@@ -12,7 +12,6 @@ export default function useTeamData(teamId) {
   const [unlocks, setUnlocks] = useState([])
   const [specialOps, setSpecialOps] = useState(null)
   const [specialOpsUnlocked, setSpecialOpsUnlocked] = useState(false)
-  const [informerPurchased, setInformerPurchased] = useState(false)
   const [bids, setBids] = useState([])
   const [dossierProgress, setDossierProgress] = useState([])
   const [loading, setLoading] = useState(true)
@@ -49,13 +48,7 @@ export default function useTeamData(teamId) {
           .maybeSingle()
         if (isMounted) setSpecialOps(opsData)
 
-        // Informer purchase
-        const { data: informerData } = await supabase
-          .from('team_informer_purchases')
-          .select('id')
-          .eq('team_id', teamId)
-          .maybeSingle()
-        if (isMounted) setInformerPurchased(!!informerData)
+
 
         // Auction bids
         const { data: bidData } = await supabase
@@ -121,17 +114,7 @@ export default function useTeamData(teamId) {
           }
         }
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'team_informer_purchases', filter: `team_id=eq.${teamId}` },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            setInformerPurchased(false)
-          } else if (payload.eventType === 'INSERT') {
-            setInformerPurchased(true)
-          }
-        }
-      )
+
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'auction_bids', filter: `team_id=eq.${teamId}` },
@@ -189,5 +172,5 @@ export default function useTeamData(teamId) {
     }
   }, [teamId])
 
-  return { team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, dossierProgress, loading, error }
+  return { team, unlocks, specialOps, specialOpsUnlocked, bids, dossierProgress, loading, error }
 }

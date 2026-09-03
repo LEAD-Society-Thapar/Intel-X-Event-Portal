@@ -125,8 +125,8 @@ VALUES ('not_started', now(), false, 10, '');
 -- -----------------------------------------------
 -- TEAMS — Test data for local development
 -- -----------------------------------------------
-INSERT INTO teams (name, login_code, team_password, credits_balance, clearance_tier) VALUES
-('Alpha Squad', 'TEST-ALPHA-123', 'alpha2026', 60, 'ALPHA'),
-('Bravo Six', 'TEST-BRAVO-456', 'bravo2026', 45, 'BRAVO'),
-('Charlie Team', 'TEST-CHARLIE-789', 'charlie2026', 35, 'CHARLIE'),
-('Delta Force', 'TEST-DELTA-000', 'delta2026', 0, NULL);
+INSERT INTO teams (name, login_code, team_password, credits_balance, score) VALUES
+('Alpha Squad', 'TEST-ALPHA-123', 'alpha2026', 60, 0),
+('Bravo Six', 'TEST-BRAVO-456', 'bravo2026', 45, 0),
+('Charlie Team', 'TEST-CHARLIE-789', 'charlie2026', 35, 0),
+('Delta Force', 'TEST-DELTA-000', 'delta2026', 0, 0);

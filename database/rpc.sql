@@ -240,63 +240,7 @@ END;
 $$;
 
 
--- ============================================================
--- RPC: purchase_informer
--- Called by teams. Buys the Unknown Informer intel.
--- ============================================================
-CREATE OR REPLACE FUNCTION purchase_informer(p_team_id UUID)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_active  BOOLEAN;
-  v_cost    INTEGER;
-  v_balance INTEGER;
-  v_already BOOLEAN;
-BEGIN
-  -- Check stall is active
-  SELECT informer_stall_active, informer_stall_cost
-    INTO v_active, v_cost
-    FROM game_state LIMIT 1;
-  IF NOT v_active THEN
-    RAISE EXCEPTION 'Informer Stall is not currently available';
-  END IF;
 
-  -- Already purchased?
-  SELECT EXISTS(
-    SELECT 1 FROM team_informer_purchases WHERE team_id = p_team_id
-  ) INTO v_already;
-  IF v_already THEN
-    RAISE EXCEPTION 'Already purchased';
-  END IF;
-
-  -- Lock team row, check balance
-  SELECT credits_balance INTO v_balance
-    FROM teams WHERE id = p_team_id
-    FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Team not found';
-  END IF;
-  IF v_balance < v_cost THEN
-    RAISE EXCEPTION 'Insufficient credits. Need %, have %', v_cost, v_balance;
-  END IF;
-
-  -- Deduct
-  UPDATE teams SET credits_balance = credits_balance - v_cost
-   WHERE id = p_team_id;
-
-  -- Record purchase
-  INSERT INTO team_informer_purchases (team_id) VALUES (p_team_id);
-
-  -- Audit
-  INSERT INTO credit_transactions (team_id, amount, reason)
-  VALUES (p_team_id, -v_cost, 'Unknown Informer purchase');
-
-  RETURN json_build_object('success', true, 'new_balance', v_balance - v_cost);
-END;
-$$;
 
 
 -- ============================================================
@@ -306,61 +250,32 @@ $$;
 
 
 -- ============================================================
--- RPC: set_round1_scores (admin only)
--- Computes clearance tier and sets starting credit balance.
--- credits_balance = bag_scan + route_trace + id_check (0–60).
+-- RPC: set_round1_credits (admin only)
+-- Sets the team's starting credit balance from Round 1.
+-- Admin enters the credits remaining after Round 1 (0–100).
 -- ============================================================
-CREATE OR REPLACE FUNCTION set_round1_scores(
-  p_team_id    UUID,
-  p_bag_scan   INTEGER,
-  p_route_trace INTEGER,
-  p_id_check   INTEGER
+CREATE OR REPLACE FUNCTION set_round1_credits(
+  p_team_id  UUID,
+  p_credits  INTEGER
 )
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-  v_total   INTEGER;
-  v_tier    TEXT;
 BEGIN
   -- Auth check
   IF auth.role() != 'authenticated' THEN
     RAISE EXCEPTION 'Unauthorized — admin only';
   END IF;
 
-  -- Validate ranges
-  IF p_bag_scan < 0 OR p_bag_scan > 20 THEN
-    RAISE EXCEPTION 'Bag Scan must be 0–20';
+  -- Validate range
+  IF p_credits < 0 OR p_credits > 100 THEN
+    RAISE EXCEPTION 'Credits must be between 0 and 100';
   END IF;
-  IF p_route_trace < 0 OR p_route_trace > 20 THEN
-    RAISE EXCEPTION 'Route Trace must be 0–20';
-  END IF;
-  IF p_id_check < 0 OR p_id_check > 20 THEN
-    RAISE EXCEPTION 'ID Check must be 0–20';
-  END IF;
-
-  v_total := p_bag_scan + p_route_trace + p_id_check;
-
-  -- Determine clearance tier
-  v_tier := CASE
-    WHEN v_total >= 51 THEN 'ALPHA'
-    WHEN v_total >= 41 THEN 'BRAVO'
-    WHEN v_total >= 31 THEN 'CHARLIE'
-    WHEN v_total >= 21 THEN 'DELTA'
-    ELSE 'LIMITED'
-  END;
 
   -- Update team
-  UPDATE teams SET
-    round1_scores   = jsonb_build_object(
-      'bag_scan', p_bag_scan,
-      'route_trace', p_route_trace,
-      'id_check', p_id_check
-    ),
-    clearance_tier  = v_tier,
-    credits_balance = v_total
+  UPDATE teams SET credits_balance = p_credits
   WHERE id = p_team_id;
 
   IF NOT FOUND THEN
@@ -369,13 +284,11 @@ BEGIN
 
   -- Audit
   INSERT INTO credit_transactions (team_id, amount, reason)
-  VALUES (p_team_id, v_total, 'Round 1 carry-forward (' || v_tier || ')');
+  VALUES (p_team_id, p_credits, 'Round 1 credits carry-forward');
 
   RETURN json_build_object(
     'success', true,
-    'total', v_total,
-    'tier', v_tier,
-    'credits', v_total
+    'credits', p_credits
   );
 END;
 $$;
@@ -383,7 +296,7 @@ $$;
 
 -- ============================================================
 -- RPC: resolve_special_ops (admin only)
--- Admin picks an outcome tier; system auto-fills credits.
+-- Admin picks an outcome tier; system awards score points.
 -- ============================================================
 CREATE OR REPLACE FUNCTION resolve_special_ops(
   p_submission_id UUID,
@@ -397,15 +310,15 @@ SET search_path = public
 AS $$
 DECLARE
   v_team_id UUID;
-  v_credits INTEGER;
+  v_score   INTEGER;
 BEGIN
   -- Auth check
   IF auth.role() != 'authenticated' THEN
     RAISE EXCEPTION 'Unauthorized — admin only';
   END IF;
 
-  -- Map outcome tier to credits
-  v_credits := CASE p_outcome_tier
+  -- Map outcome tier to score points
+  v_score := CASE p_outcome_tier
     WHEN 'exceptional' THEN 40
     WHEN 'successful'  THEN 30
     WHEN 'partial'     THEN 20
@@ -413,7 +326,7 @@ BEGIN
     WHEN 'failure'     THEN 0
     ELSE NULL
   END;
-  IF v_credits IS NULL THEN
+  IF v_score IS NULL THEN
     RAISE EXCEPTION 'Invalid outcome tier. Must be: exceptional, successful, partial, limited, failure';
   END IF;
 
@@ -428,25 +341,22 @@ BEGIN
   -- Update submission
   UPDATE special_ops_submissions SET
     outcome_tier      = p_outcome_tier,
-    credits_awarded   = v_credits,
+    score_awarded     = v_score,
     resolved_by_admin = true,
     admin_narrative   = p_narrative
   WHERE id = p_submission_id;
 
-  -- Credit the team (if > 0)
-  IF v_credits > 0 THEN
-    UPDATE teams SET credits_balance = credits_balance + v_credits
+  -- Award score to the team (if > 0)
+  IF v_score > 0 THEN
+    UPDATE teams SET score = score + v_score
      WHERE id = v_team_id;
-
-    INSERT INTO credit_transactions (team_id, amount, reason)
-    VALUES (v_team_id, v_credits, 'Special Ops result: ' || p_outcome_tier || ' (+' || v_credits || ')');
   END IF;
 
   RETURN json_build_object(
     'success', true,
     'team_id', v_team_id,
     'outcome_tier', p_outcome_tier,
-    'credits_awarded', v_credits
+    'score_awarded', v_score
   );
 END;
 $$;
@@ -536,28 +446,7 @@ END;
 $$;
 
 
--- ============================================================
--- RPC: toggle_informer (admin only)
--- Toggles the unknown informer stall status.
--- ============================================================
-CREATE OR REPLACE FUNCTION toggle_informer(p_active BOOLEAN)
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Auth check
-  IF auth.role() != 'authenticated' THEN
-    RAISE EXCEPTION 'Unauthorized — admin only';
-  END IF;
 
-  UPDATE game_state SET informer_stall_active = p_active
-  WHERE current_phase IS NOT NULL;
-
-  RETURN json_build_object('success', true, 'informer_active', p_active);
-END;
-$$;
 
 
 -- ============================================================
@@ -583,21 +472,18 @@ BEGIN
   DELETE FROM team_special_ops_unlocks WHERE team_id IS NOT NULL;
   DELETE FROM special_ops_submissions WHERE id IS NOT NULL;
   DELETE FROM auction_bids WHERE id IS NOT NULL;
-  DELETE FROM team_informer_purchases WHERE team_id IS NOT NULL;
   DELETE FROM team_dossier_progress WHERE team_id IS NOT NULL;
 
   -- Reset game phase
   UPDATE game_state SET
     current_phase = 'not_started',
-    informer_stall_active = false,
     phase_started_at = now()
   WHERE current_phase IS NOT NULL;
 
   -- Reset all team scores and credits
   UPDATE teams SET
     credits_balance = 0,
-    round1_scores = NULL,
-    clearance_tier = NULL
+    score = 0
   WHERE id IS NOT NULL;
 
   RETURN json_build_object('success', true, 'message', 'Game fully reset');
@@ -629,7 +515,7 @@ DECLARE
   v_q1_correct BOOLEAN := false;
   v_q2_correct BOOLEAN := false;
   v_q3_correct BOOLEAN := false;
-  v_credits_to_add INTEGER := 0;
+  v_score_to_add INTEGER := 0;
 BEGIN
   -- 1. Check if team unlocked this airport
   SELECT EXISTS(
@@ -655,21 +541,21 @@ BEGIN
   -- Q1
   IF NOT COALESCE(v_prog.q1_solved, false) AND lower(trim(p_a1)) = lower(trim(v_keys.q1_answer)) THEN
     v_q1_correct := true;
-    v_credits_to_add := v_credits_to_add + 10;
+    v_score_to_add := v_score_to_add + 10;
   END IF;
   -- Q2
   IF NOT COALESCE(v_prog.q2_solved, false) AND lower(trim(p_a2)) = lower(trim(v_keys.q2_answer)) THEN
     v_q2_correct := true;
-    v_credits_to_add := v_credits_to_add + 10;
+    v_score_to_add := v_score_to_add + 10;
   END IF;
   -- Q3
   IF NOT COALESCE(v_prog.q3_solved, false) AND lower(trim(p_a3)) = lower(trim(v_keys.q3_answer)) THEN
     v_q3_correct := true;
-    v_credits_to_add := v_credits_to_add + 10;
+    v_score_to_add := v_score_to_add + 10;
   END IF;
 
-  -- 5. Upsert progress and award credits if any new correct
-  IF v_credits_to_add > 0 THEN
+  -- 5. Upsert progress and award score if any new correct
+  IF v_score_to_add > 0 THEN
     -- Upsert progress
     INSERT INTO team_dossier_progress (team_id, airport_id, q1_solved, q2_solved, q3_solved)
     VALUES (p_team_id, p_airport_id, v_q1_correct, v_q2_correct, v_q3_correct)
@@ -679,13 +565,12 @@ BEGIN
       q2_solved = team_dossier_progress.q2_solved OR EXCLUDED.q2_solved,
       q3_solved = team_dossier_progress.q3_solved OR EXCLUDED.q3_solved;
 
-    -- Add credits
-    UPDATE teams SET credits_balance = credits_balance + v_credits_to_add
+    -- Add score
+    UPDATE teams SET score = score + v_score_to_add
     WHERE id = p_team_id;
 
-    -- Log transaction
-    INSERT INTO credit_transactions (team_id, amount, reason)
-    VALUES (p_team_id, v_credits_to_add, 'Dossier Analysis: Correct Answers');
+    -- (Optional) We could log score transactions if we created a score_transactions table, 
+    -- but for now, we just update the score directly.
   END IF;
 
   RETURN json_build_object(
@@ -693,7 +578,7 @@ BEGIN
     'q1_newly_correct', v_q1_correct,
     'q2_newly_correct', v_q2_correct,
     'q3_newly_correct', v_q3_correct,
-    'credits_awarded', v_credits_to_add
+    'score_awarded', v_score_to_add
   );
 END;
 $$;

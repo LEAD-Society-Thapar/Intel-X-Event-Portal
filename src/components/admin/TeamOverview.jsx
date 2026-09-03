@@ -71,7 +71,7 @@ export default function TeamOverview() {
     switch (sortKey) {
       case 'name': aVal = a.name; bVal = b.name; break
       case 'credits': aVal = a.credits_balance; bVal = b.credits_balance; break
-      case 'tier': aVal = a.clearance_tier || ''; bVal = b.clearance_tier || ''; break
+      case 'score': aVal = a.score || 0; bVal = b.score || 0; break
       case 'unlocks': aVal = (unlocks[a.id] || []).length; bVal = (unlocks[b.id] || []).length; break
       default: aVal = a.name; bVal = b.name
     }
@@ -118,7 +118,7 @@ export default function TeamOverview() {
             <tr>
               <SortHeader label="Team" field="name" />
               <SortHeader label="Credits" field="credits" />
-              <SortHeader label="Tier" field="tier" />
+              <SortHeader label="Score" field="score" />
               <SortHeader label="Airports" field="unlocks" />
               <th className="px-3 py-2 text-left text-xs font-mono text-gray-400 uppercase tracking-wider">
                 Ops Status
@@ -135,14 +135,8 @@ export default function TeamOverview() {
                   <td className="px-3 py-2.5 font-mono text-amber-400 tabular-nums">
                     {t.credits_balance}
                   </td>
-                  <td className="px-3 py-2.5">
-                    {t.clearance_tier ? (
-                      <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-white/5 text-gray-300">
-                        {t.clearance_tier}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-600">—</span>
-                    )}
+                  <td className="px-3 py-2.5 font-mono text-emerald-400 tabular-nums">
+                    {t.score || 0}
                   </td>
                   <td className="px-3 py-2.5 font-mono text-gray-300 tabular-nums">
                     {teamUnlocks.length}/4

@@ -49,9 +49,6 @@ export default function useGameState() {
   return {
     currentPhase: gameState?.current_phase ?? 'not_started',
     phaseStartedAt: gameState?.phase_started_at ?? null,
-    informerStallActive: gameState?.informer_stall_active ?? false,
-    informerStallCost: gameState?.informer_stall_cost ?? 10,
-    informerStallContent: gameState?.informer_stall_content ?? '',
     loading,
   }
 }

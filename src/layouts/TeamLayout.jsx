@@ -9,13 +9,13 @@ const PHASE_LABELS = {
   t20_special_ops: 'SPECIAL OPS LIVE',
   t35_expansion: 'INTELLIGENCE EXPANSION',
   t45_catalogue: 'ASSET CATALOGUE RELEASED',
-  t50_auction: 'AUCTION OPEN',
+  t50_auction: 'UNKNOWN INFORMER PHASE',
   t55_final: 'ACTION IMMINENT',
 }
 
 export default function TeamLayout() {
   const { team: authTeam, logout } = useAuth()
-  const { team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, dossierProgress, loading } = useTeamData(authTeam?.id)
+  const { team, unlocks, specialOps, specialOpsUnlocked, bids, dossierProgress, loading } = useTeamData(authTeam?.id)
   const gameState = useGameState()
 
   const credits = team?.credits_balance ?? 0
@@ -44,7 +44,7 @@ export default function TeamLayout() {
             </span>
           </div>
 
-          {/* Right: Credits + logout */}
+          {/* Right: Credits + Score + logout */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-gray-500 uppercase tracking-wide">Credits</span>
@@ -53,6 +53,15 @@ export default function TeamLayout() {
                 className="font-mono text-lg font-bold text-amber-400 tabular-nums animate-[pulse_0.4s_ease-in-out]"
               >
                 {credits}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-500 uppercase tracking-wide">Score</span>
+              <span
+                key={team?.score}
+                className="font-mono text-lg font-bold text-emerald-400 tabular-nums animate-[pulse_0.4s_ease-in-out]"
+              >
+                {team?.score ?? 0}
               </span>
             </div>
             <button
@@ -82,7 +91,7 @@ export default function TeamLayout() {
             </span>
           </div>
         ) : (
-          <Outlet context={{ team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, dossierProgress, gameState }} />
+          <Outlet context={{ team, unlocks, specialOps, specialOpsUnlocked, bids, dossierProgress, gameState }} />
         )}
       </main>
     </div>

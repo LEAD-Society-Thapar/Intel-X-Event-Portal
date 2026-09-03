@@ -95,7 +95,7 @@ export default function DossierViewer() {
       if (error) throw error
 
       if (data.q1_newly_correct || data.q2_newly_correct || data.q3_newly_correct) {
-        setSuccessMsg(`Intelligence verified. +${data.credits_awarded} credits awarded.`)
+        setSuccessMsg(`Intelligence verified. +${data.score_awarded} score points awarded.`)
         if (data.q1_newly_correct) setQ1('')
         if (data.q2_newly_correct) setQ2('')
         if (data.q3_newly_correct) setQ3('')

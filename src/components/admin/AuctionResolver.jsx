@@ -54,12 +54,12 @@ export default function AuctionResolver() {
   }
 
   if (loading) {
-    return <div className="text-gray-500 font-mono text-sm animate-pulse">Loading auction data...</div>
+    return <div className="text-gray-500 font-mono text-sm animate-pulse">Loading Unknown Informer data...</div>
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-white">Auction Resolution</h2>
+      <h2 className="text-lg font-semibold text-white">Unknown Informer Resolution</h2>
 
       {items.map((item) => {
         const itemBids = bids[item.id] || []
@@ -80,14 +80,14 @@ export default function AuctionResolver() {
             )}
 
             {itemBids.length === 0 ? (
-              <p className="text-xs text-gray-500 font-mono">No bids placed.</p>
+              <p className="text-xs text-gray-500 font-mono">No offers placed.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-[10px] font-mono text-gray-500 uppercase tracking-wider">
                       <th className="px-2 py-1">Team</th>
-                      <th className="px-2 py-1">Bid</th>
+                      <th className="px-2 py-1">Offer</th>
                       <th className="px-2 py-1">Time</th>
                       <th className="px-2 py-1">Action</th>
                     </tr>

@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
 
     const { data, error } = await supabase
       .from('teams')
-      .select('id, name, credits_balance, clearance_tier')
+      .select('id, name, credits_balance, score')
       .eq('login_code', trimmed)
       .eq('team_password', password.trim())
       .single()

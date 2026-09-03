@@ -10,11 +10,11 @@ const OUTCOME_OPTIONS = [
 ]
 
 const NARRATIVE_TEMPLATES = {
-  exceptional: 'HQ REPORT: Field Unit {TEAM} executed a flawless multi-domain intelligence synthesis. The directive demonstrated exceptional operational awareness, connecting critical identifiers across OPINT, CYBINT, FININT, and HUMINT channels. Resource Allocation: +40 Investigation Credits.',
-  successful: 'HQ REPORT: Field Unit {TEAM} successfully identified key operational elements and produced logically sound deductions. The directive shows strong investigative capability. Resource Allocation: +30 Investigation Credits.',
-  partial: 'HQ REPORT: Field Unit {TEAM} demonstrated basic understanding of the operational landscape but missed deeper cross-domain connections. Resource Allocation: +20 Investigation Credits.',
-  limited: 'HQ REPORT: Field Unit {TEAM} showed engagement with the intelligence material but submitted factually incorrect conclusions. Resource Allocation: +10 Investigation Credits.',
-  failure: 'HQ REPORT: Field Unit {TEAM} — directive does not align with any verified intelligence. No actionable intelligence recovered.',
+  exceptional: 'HQ REPORT: Field Unit {TEAM} executed a flawless multi-domain intelligence synthesis. The directive demonstrated exceptional operational awareness, connecting critical identifiers across OPINT, CYBINT, FININT, and HUMINT channels. Score Awarded: +40 Points.',
+  successful: 'HQ REPORT: Field Unit {TEAM} successfully identified key operational elements and produced logically sound deductions. The directive shows strong investigative capability. Score Awarded: +30 Points.',
+  partial: 'HQ REPORT: Field Unit {TEAM} demonstrated basic understanding of the operational landscape but missed deeper cross-domain connections. Score Awarded: +20 Points.',
+  limited: 'HQ REPORT: Field Unit {TEAM} showed engagement with the intelligence material but submitted factually incorrect conclusions. Score Awarded: +10 Points.',
+  failure: 'HQ REPORT: Field Unit {TEAM} — directive does not align with any verified intelligence. No actionable intelligence recovered. Score Awarded: +0 Points.',
 }
 
 export default function SpecialOpsQueue() {
@@ -173,7 +173,7 @@ export default function SpecialOpsQueue() {
               <div key={sub.id} className="rounded-lg border border-white/5 bg-white/[0.02] p-3 opacity-70">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-mono text-gray-400">{teams[sub.team_id]}</span>
-                  <span className="text-xs font-mono text-emerald-500">{sub.outcome_tier} (+{sub.credits_awarded})</span>
+                  <span className="text-xs font-mono text-emerald-500">{sub.outcome_tier} (+{sub.score_awarded})</span>
                 </div>
               </div>
             ))}

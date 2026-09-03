@@ -78,7 +78,7 @@ export default function AuctionCard({ item, bid, auctionOpen, auctionClosed, tea
       {hasBid && !isWinner && (
         <div className="flex items-center gap-2 py-2">
           <span className="text-xs font-mono text-amber-400">
-            SEALED BID: {bid.bid_amount} credits
+            SEALED OFFER: {bid.bid_amount} credits
           </span>
           {auctionClosed && (
             <span className="text-xs font-mono text-gray-500">
@@ -114,14 +114,14 @@ export default function AuctionCard({ item, bid, auctionOpen, auctionClosed, tea
                          disabled:opacity-40 disabled:cursor-not-allowed
                          transition-colors whitespace-nowrap"
             >
-              {loading ? '...' : 'SEAL BID'}
+              {loading ? '...' : 'SEAL OFFER'}
             </button>
           </div>
           {error && (
             <p className="text-xs text-red-400 font-mono">⚠ {error}</p>
           )}
           <p className="text-[10px] text-gray-600 font-mono">
-            Sealed bids are final. Whole numbers only. No credit deduction until adjudication.
+            Sealed offers are final. Whole numbers only. No credit deduction until adjudication.
           </p>
         </form>
       )}
@@ -130,7 +130,7 @@ export default function AuctionCard({ item, bid, auctionOpen, auctionClosed, tea
       {!hasBid && !auctionOpen && !auctionClosed && (
         <div className="py-2">
           <span className="text-xs font-mono text-gray-500">
-            Bidding opens at T+50
+            Unknown Informer Phase opens at T+50
           </span>
         </div>
       )}
@@ -139,7 +139,7 @@ export default function AuctionCard({ item, bid, auctionOpen, auctionClosed, tea
       {!hasBid && auctionClosed && (
         <div className="py-2">
           <span className="text-xs font-mono text-gray-500">
-            NO BID PLACED
+            NO OFFER PLACED
           </span>
         </div>
       )}

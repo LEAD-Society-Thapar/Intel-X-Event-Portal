@@ -66,14 +66,14 @@ export default function SpecialOpsCard({ teamId, credits, specialOps, specialOps
         <p className="text-sm leading-relaxed mb-3">
           {specialOps.admin_narrative || `Operation result: ${specialOps.outcome_tier}`}
         </p>
-        {specialOps.credits_awarded > 0 && (
+        {specialOps.score_awarded > 0 && (
           <div className="font-mono text-sm font-semibold mt-2">
-            Resource Allocation: +{specialOps.credits_awarded} Investigation Credits
+            Score Awarded: +{specialOps.score_awarded} Points
           </div>
         )}
-        {specialOps.credits_awarded === 0 && (
+        {specialOps.score_awarded === 0 && (
           <div className="font-mono text-sm text-gray-500 mt-2">
-            No additional resources allocated.
+            No score points awarded.
           </div>
         )}
       </div>

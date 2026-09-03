@@ -3,10 +3,9 @@ import { useOutletContext, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import AirportCard from '../components/AirportCard'
 import SpecialOpsCard from '../components/SpecialOpsCard'
-import InformerStall from '../components/InformerStall'
 
 export default function TeamDashboard() {
-  const { team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, gameState } = useOutletContext()
+  const { team, unlocks, specialOps, specialOpsUnlocked, bids, gameState } = useOutletContext()
   const [airports, setAirports] = useState([])
   const [airportsLoading, setAirportsLoading] = useState(true)
 
@@ -70,7 +69,7 @@ export default function TeamDashboard() {
               className="text-xs font-mono px-3 py-1.5 rounded border border-amber-500/30 text-amber-400
                          hover:bg-amber-500/10 transition-colors"
             >
-              AUCTION →
+              UNKNOWN INFORMER →
             </Link>
           )}
         </div>
@@ -111,21 +110,6 @@ export default function TeamDashboard() {
         </section>
       )}
 
-      {/* ---- Section: Unknown Informer Stall ---- */}
-      {gameState.informerStallActive && (
-        <section>
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Unknown Informer
-          </h2>
-          <InformerStall
-            teamId={team.id}
-            credits={team.credits_balance}
-            purchased={informerPurchased}
-            cost={gameState.informerStallCost}
-            content={gameState.informerStallContent}
-          />
-        </section>
-      )}
     </div>
   )
 }

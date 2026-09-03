@@ -70,10 +70,10 @@ export default function Auction() {
         </h2>
         <p className="text-xs text-gray-500 font-mono mt-0.5">
           {auctionOpen
-            ? 'BLIND AUCTION OPEN — Submit sealed bids (whole numbers only)'
+            ? 'UNKNOWN INFORMER PHASE OPEN — Submit sealed offers (whole numbers only)'
             : auctionClosed
-              ? 'AUCTION CLOSED — Results pending adjudication'
-              : 'CATALOGUE PREVIEW — Bidding opens at T+50'
+              ? 'PHASE CLOSED — Results pending adjudication'
+              : 'CATALOGUE PREVIEW — Unknown Informer Phase opens at T+50'
           }
         </p>
       </div>

@@ -44,7 +44,7 @@ const PHASE_DATA = {
   t50_auction: {
     classification: 'MARKET CLOSURE',
     title: 'HQ UPDATE 04',
-    subtitle: 'Blind Auction — OPEN',
+    subtitle: 'Unknown Informer Phase — OPEN',
     body: 'Primary intelligence gathering is officially terminated. We must act on what we have.',
     duration: 5 * 60, // 5 minutes
   },

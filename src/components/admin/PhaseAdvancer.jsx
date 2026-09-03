@@ -7,8 +7,8 @@ const PHASES = [
   { value: 't20_special_ops', label: 'Open Special Ops (T+20)',                  desc: 'Special Operations form appears for teams' },
   { value: 't35_expansion',   label: 'Close Special Ops / Open Expansion (T+35)', desc: 'Ops window closes, results delivered' },
   { value: 't45_catalogue',   label: 'Release Asset Catalogue (T+45)',           desc: 'Auction items visible, bidding still locked' },
-  { value: 't50_auction',     label: 'Lock Marketplace / Open Auction (T+50)',   desc: 'Marketplace locks, 5-minute auction opens' },
-  { value: 't55_final',       label: 'Final Broadcast (T+55)',                   desc: 'Auction closes, final broadcast' },
+  { value: 't50_auction',     label: 'Lock Marketplace / Open Unknown Informer (T+50)',   desc: 'Marketplace locks, Unknown Informer Phase opens' },
+  { value: 't55_final',       label: 'Final Broadcast (T+55)',                   desc: 'Unknown Informer closes, final broadcast' },
 ]
 
 const PHASE_ORDER = ['not_started', ...PHASES.map((p) => p.value)]

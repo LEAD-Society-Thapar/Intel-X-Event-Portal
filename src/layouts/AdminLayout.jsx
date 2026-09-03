@@ -8,15 +8,15 @@ const PHASE_LABELS = {
   t20_special_ops: 'T+20 SPECIAL OPS',
   t35_expansion: 'T+35 EXPANSION',
   t45_catalogue: 'T+45 CATALOGUE',
-  t50_auction: 'T+50 AUCTION',
+  t50_auction: 'T+50 UNKNOWN INFORMER',
   t55_final: 'T+55 FINAL',
 }
 
 const NAV_ITEMS = [
   { to: '/admin',         label: 'Overview',      end: true },
-  { to: '/admin/scores',  label: 'Round 1 Scores' },
+  { to: '/admin/scores',  label: 'Round 1 Credits' },
   { to: '/admin/ops',     label: 'Special Ops' },
-  { to: '/admin/auction', label: 'Auction' },
+  { to: '/admin/auction', label: 'Unknown Informer' },
   { to: '/admin/teams',   label: 'Teams' },
   { to: '/admin/round3',  label: 'Round 3' },
 ]

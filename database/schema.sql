@@ -23,17 +23,16 @@ CREATE TYPE game_phase AS ENUM (
 -- -----------------------------------------------
 -- TABLE: teams
 -- One row per participating team.
--- credits_balance starts at 0; set by the Round 1
--- score-entry RPC (= bag_scan + route_trace + id_check).
+-- credits_balance = money left (set from Round 1, only decreases).
+-- score           = points earned from correct answers (only increases).
 -- -----------------------------------------------
 CREATE TABLE teams (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name            TEXT NOT NULL UNIQUE,
   login_code      TEXT NOT NULL UNIQUE,
   team_password   TEXT NOT NULL DEFAULT 'changeme',
-  round1_scores   JSONB DEFAULT NULL,
-  clearance_tier  TEXT DEFAULT NULL,
   credits_balance INTEGER NOT NULL DEFAULT 0,
+  score           INTEGER NOT NULL DEFAULT 0,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -133,7 +132,7 @@ CREATE TABLE special_ops_submissions (
   team_id           UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE UNIQUE,
   directive_text    TEXT NOT NULL,
   outcome_tier      TEXT DEFAULT NULL,
-  credits_awarded   INTEGER DEFAULT NULL,
+  score_awarded     INTEGER DEFAULT NULL,
   resolved_by_admin BOOLEAN NOT NULL DEFAULT false,
   admin_narrative   TEXT DEFAULT NULL,
   submitted_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -193,22 +192,9 @@ CREATE TABLE round3_submissions (
 CREATE TABLE game_state (
   id                     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   current_phase          game_phase NOT NULL DEFAULT 'not_started',
-  phase_started_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  informer_stall_active  BOOLEAN NOT NULL DEFAULT false,
-  informer_stall_cost    INTEGER NOT NULL DEFAULT 10,
-  informer_stall_content TEXT NOT NULL DEFAULT ''
+  phase_started_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- -----------------------------------------------
--- TABLE: team_informer_purchases
--- Tracks which teams bought the informer intel.
--- -----------------------------------------------
-CREATE TABLE team_informer_purchases (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  team_id      UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE UNIQUE,
-  purchased_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE team_informer_purchases REPLICA IDENTITY FULL;
 
 
 -- ============================================================
@@ -235,7 +221,6 @@ ALTER TABLE auction_items            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auction_bids             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE round3_submissions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_state               ENABLE ROW LEVEL SECURITY;
-ALTER TABLE team_informer_purchases  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_special_ops_unlocks ENABLE ROW LEVEL SECURITY;
 
 -- ---------- SELECT (everyone) ----------
@@ -249,7 +234,6 @@ CREATE POLICY "select_auction_items"  ON auction_items           FOR SELECT USIN
 CREATE POLICY "select_auction_bids"   ON auction_bids            FOR SELECT USING (true);
 CREATE POLICY "select_round3"         ON round3_submissions      FOR SELECT USING (true);
 CREATE POLICY "select_game_state"     ON game_state              FOR SELECT USING (true);
-CREATE POLICY "select_informer"       ON team_informer_purchases FOR SELECT USING (true);
 
 -- ---------- WRITE (authenticated / admin only) ----------
 CREATE POLICY "admin_all_teams"       ON teams                   FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -262,7 +246,6 @@ CREATE POLICY "admin_all_auction_i"   ON auction_items           FOR ALL TO auth
 CREATE POLICY "admin_all_auction_b"   ON auction_bids            FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_round3"      ON round3_submissions      FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_game_state"  ON game_state              FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "admin_all_informer"    ON team_informer_purchases FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
 -- ============================================================
@@ -273,6 +256,5 @@ ALTER PUBLICATION supabase_realtime ADD TABLE game_state;
 ALTER PUBLICATION supabase_realtime ADD TABLE special_ops_submissions;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_airport_unlocks;
 ALTER PUBLICATION supabase_realtime ADD TABLE auction_bids;
-ALTER PUBLICATION supabase_realtime ADD TABLE team_informer_purchases;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_dossier_progress;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_special_ops_unlocks;

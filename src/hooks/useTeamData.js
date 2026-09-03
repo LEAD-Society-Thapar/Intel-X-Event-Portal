@@ -11,6 +11,7 @@ export default function useTeamData(teamId) {
   const [team, setTeam] = useState(null)
   const [unlocks, setUnlocks] = useState([])
   const [specialOps, setSpecialOps] = useState(null)
+  const [specialOpsUnlocked, setSpecialOpsUnlocked] = useState(false)
   const [informerPurchased, setInformerPurchased] = useState(false)
   const [bids, setBids] = useState([])
   const [dossierProgress, setDossierProgress] = useState([])
@@ -69,6 +70,14 @@ export default function useTeamData(teamId) {
           .select('*')
           .eq('team_id', teamId)
         if (isMounted) setDossierProgress(progressData || [])
+
+        // Special ops unlock
+        const { data: opsUnlockData } = await supabase
+          .from('team_special_ops_unlocks')
+          .select('id')
+          .eq('team_id', teamId)
+          .maybeSingle()
+        if (isMounted) setSpecialOpsUnlocked(!!opsUnlockData)
 
       } catch (err) {
         if (isMounted) setError(err.message)
@@ -144,6 +153,17 @@ export default function useTeamData(teamId) {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'team_special_ops_unlocks', filter: `team_id=eq.${teamId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setSpecialOpsUnlocked(false)
+          } else if (payload.eventType === 'INSERT') {
+            setSpecialOpsUnlocked(true)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'team_dossier_progress', filter: `team_id=eq.${teamId}` },
         (payload) => {
           if (payload.eventType === 'DELETE') {
@@ -169,5 +189,5 @@ export default function useTeamData(teamId) {
     }
   }, [teamId])
 
-  return { team, unlocks, specialOps, informerPurchased, bids, dossierProgress, loading, error }
+  return { team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, dossierProgress, loading, error }
 }

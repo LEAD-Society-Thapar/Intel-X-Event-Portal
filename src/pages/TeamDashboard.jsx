@@ -6,7 +6,7 @@ import SpecialOpsCard from '../components/SpecialOpsCard'
 import InformerStall from '../components/InformerStall'
 
 export default function TeamDashboard() {
-  const { team, unlocks, specialOps, informerPurchased, gameState } = useOutletContext()
+  const { team, unlocks, specialOps, specialOpsUnlocked, informerPurchased, bids, gameState } = useOutletContext()
   const [airports, setAirports] = useState([])
   const [airportsLoading, setAirportsLoading] = useState(true)
 
@@ -105,6 +105,7 @@ export default function TeamDashboard() {
             teamId={team.id}
             credits={team.credits_balance}
             specialOps={specialOps}
+            specialOpsUnlocked={specialOpsUnlocked}
             currentPhase={currentPhase}
           />
         </section>

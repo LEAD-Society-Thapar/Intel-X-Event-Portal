@@ -74,10 +74,10 @@ $$;
 
 
 -- ============================================================
--- RPC: submit_special_ops
--- Called by teams. One-time only, costs 15 credits up front.
+-- RPC: unlock_special_ops
+-- Unlocks the dossier by deducting 15 credits
 -- ============================================================
-CREATE OR REPLACE FUNCTION submit_special_ops(p_team_id UUID, p_directive_text TEXT)
+CREATE OR REPLACE FUNCTION unlock_special_ops(p_team_id UUID)
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -95,12 +95,12 @@ BEGIN
     RAISE EXCEPTION 'Special Operations are not currently available';
   END IF;
 
-  -- Already submitted?
+  -- Already unlocked?
   SELECT EXISTS(
-    SELECT 1 FROM special_ops_submissions WHERE team_id = p_team_id
+    SELECT 1 FROM team_special_ops_unlocks WHERE team_id = p_team_id
   ) INTO v_already;
   IF v_already THEN
-    RAISE EXCEPTION 'Special Operations directive already submitted';
+    RAISE EXCEPTION 'Special Operations dossier already unlocked';
   END IF;
 
   -- Lock team row, check balance
@@ -118,17 +118,65 @@ BEGIN
   UPDATE teams SET credits_balance = credits_balance - v_ops_cost
    WHERE id = p_team_id;
 
-  -- Record submission
-  INSERT INTO special_ops_submissions (team_id, directive_text)
-  VALUES (p_team_id, p_directive_text);
+  -- Record unlock
+  INSERT INTO team_special_ops_unlocks (team_id)
+  VALUES (p_team_id);
 
   -- Audit
   INSERT INTO credit_transactions (team_id, amount, reason)
-  VALUES (p_team_id, -v_ops_cost, 'Special Intelligence Operation');
+  VALUES (p_team_id, -v_ops_cost, 'Special Intelligence Operation Unlock');
 
   RETURN json_build_object(
     'success', true,
     'new_balance', v_balance - v_ops_cost
+  );
+END;
+$$;
+
+
+-- ============================================================
+-- RPC: submit_special_ops
+-- Called by teams to submit their hypothesis (free after unlock)
+-- ============================================================
+CREATE OR REPLACE FUNCTION submit_special_ops(p_team_id UUID, p_directive_text TEXT)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_already       BOOLEAN;
+  v_unlocked      BOOLEAN;
+  v_current_phase game_phase;
+BEGIN
+  -- Check game phase
+  SELECT current_phase INTO v_current_phase FROM game_state LIMIT 1;
+  IF v_current_phase NOT IN ('t20_special_ops', 't35_expansion') THEN
+    RAISE EXCEPTION 'Special Operations are not currently available';
+  END IF;
+
+  -- Verify unlocked
+  SELECT EXISTS(
+    SELECT 1 FROM team_special_ops_unlocks WHERE team_id = p_team_id
+  ) INTO v_unlocked;
+  IF NOT v_unlocked THEN
+    RAISE EXCEPTION 'Special Operations dossier must be unlocked first';
+  END IF;
+
+  -- Already submitted?
+  SELECT EXISTS(
+    SELECT 1 FROM special_ops_submissions WHERE team_id = p_team_id
+  ) INTO v_already;
+  IF v_already THEN
+    RAISE EXCEPTION 'Special Operations directive already submitted';
+  END IF;
+
+  -- Record submission
+  INSERT INTO special_ops_submissions (team_id, directive_text)
+  VALUES (p_team_id, p_directive_text);
+
+  RETURN json_build_object(
+    'success', true
   );
 END;
 $$;
@@ -532,6 +580,7 @@ BEGIN
   -- Wipe all transactional data
   DELETE FROM credit_transactions WHERE id IS NOT NULL;
   DELETE FROM team_airport_unlocks WHERE team_id IS NOT NULL;
+  DELETE FROM team_special_ops_unlocks WHERE team_id IS NOT NULL;
   DELETE FROM special_ops_submissions WHERE id IS NOT NULL;
   DELETE FROM auction_bids WHERE id IS NOT NULL;
   DELETE FROM team_informer_purchases WHERE team_id IS NOT NULL;

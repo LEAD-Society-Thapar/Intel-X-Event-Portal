@@ -114,6 +114,17 @@ ALTER TABLE team_airport_unlocks REPLICA IDENTITY FULL;
 CREATE INDEX idx_unlocks_team ON team_airport_unlocks(team_id);
 
 -- -----------------------------------------------
+-- TABLE: team_special_ops_unlocks
+-- Tracks which teams paid to unlock the Special Ops dossier.
+-- -----------------------------------------------
+CREATE TABLE team_special_ops_unlocks (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  team_id     UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE UNIQUE,
+  unlocked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE team_special_ops_unlocks REPLICA IDENTITY FULL;
+
+-- -----------------------------------------------
 -- TABLE: special_ops_submissions
 -- One per team (UNIQUE on team_id).
 -- -----------------------------------------------
@@ -225,6 +236,7 @@ ALTER TABLE auction_bids             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE round3_submissions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_state               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_informer_purchases  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_special_ops_unlocks ENABLE ROW LEVEL SECURITY;
 
 -- ---------- SELECT (everyone) ----------
 CREATE POLICY "select_teams"          ON teams                   FOR SELECT USING (true);
@@ -232,6 +244,7 @@ CREATE POLICY "select_credit_tx"      ON credit_transactions     FOR SELECT USIN
 CREATE POLICY "select_airports"       ON airports                FOR SELECT USING (true);
 CREATE POLICY "select_unlocks"        ON team_airport_unlocks    FOR SELECT USING (true);
 CREATE POLICY "select_special_ops"    ON special_ops_submissions FOR SELECT USING (true);
+CREATE POLICY "select_sp_ops_unlock"  ON team_special_ops_unlocks FOR SELECT USING (true);
 CREATE POLICY "select_auction_items"  ON auction_items           FOR SELECT USING (true);
 CREATE POLICY "select_auction_bids"   ON auction_bids            FOR SELECT USING (true);
 CREATE POLICY "select_round3"         ON round3_submissions      FOR SELECT USING (true);
@@ -244,6 +257,7 @@ CREATE POLICY "admin_all_credit_tx"   ON credit_transactions     FOR ALL TO auth
 CREATE POLICY "admin_all_airports"    ON airports                FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_unlocks"     ON team_airport_unlocks    FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_special_ops" ON special_ops_submissions FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "admin_all_sp_ops_un"   ON team_special_ops_unlocks FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_auction_i"   ON auction_items           FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_auction_b"   ON auction_bids            FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "admin_all_round3"      ON round3_submissions      FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -261,3 +275,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE team_airport_unlocks;
 ALTER PUBLICATION supabase_realtime ADD TABLE auction_bids;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_informer_purchases;
 ALTER PUBLICATION supabase_realtime ADD TABLE team_dossier_progress;
+ALTER PUBLICATION supabase_realtime ADD TABLE team_special_ops_unlocks;
